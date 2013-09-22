@@ -1,5 +1,7 @@
 package de.markiewb.plugins.netbeans.resourcehyperlink;
 
+import java.util.EnumSet;
+import java.util.Set;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.JTextComponent;
@@ -11,6 +13,8 @@ import org.netbeans.api.lexer.TokenSequence;
 import org.netbeans.editor.BaseDocument;
 import org.netbeans.editor.Utilities;
 import org.netbeans.lib.editor.hyperlink.spi.HyperlinkProvider;
+import org.netbeans.lib.editor.hyperlink.spi.HyperlinkProviderExt;
+import org.netbeans.lib.editor.hyperlink.spi.HyperlinkType;
 import org.netbeans.modules.editor.NbEditorUtilities;
 import org.openide.awt.StatusDisplayer;
 import org.openide.cookies.EditCookie;
@@ -21,8 +25,8 @@ import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.util.Exceptions;
 
 
-@MimeRegistration(mimeType = "text/x-java", service = HyperlinkProvider.class)
-public class ResourceHyperlinkProvider implements HyperlinkProvider {
+@MimeRegistration(mimeType = "text/x-java", service = HyperlinkProviderExt.class)
+public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     private int startOffset;
     private int endOffset;
@@ -31,7 +35,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
     private String linkTarget;
 
     @Override
-    public boolean isHyperlinkPoint(Document document, int offset) {
+    public boolean isHyperlinkPoint(Document document, int offset, HyperlinkType type) {
         if (!(document instanceof BaseDocument)) {
             return false;
         }
@@ -68,14 +72,10 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
                     && resourceToken.length() > 2) { // identifier must be longer than "" string
                 startOffset = resourceToken.offset(hi) + 1;
                 endOffset = resourceToken.offset(hi) + resourceToken.length() - 1;
-                // src/main
-//                endOffset=offset;
 
                 if (startOffset > endOffset) {
                     endOffset = startOffset;
                 }
-//                String fromStart = resourceToken.text().subSequence(1, offset-startOffset).toString();
-                String fromStart="";
                 final String wholeText = resourceToken.text().subSequence(1, resourceToken.length() - 1).toString();
                 
                 final int offSetAtCursor = (offset-startOffset)+1;
@@ -100,7 +100,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
     private int getIndexOfNextPathSeparator(final String wholeText, final int offSetAtCursor) {
         int indexOf = wholeText.indexOf("/", offSetAtCursor-1);
         if (indexOf<0){
-            //fallback use windows separator
+            //TODO fallback use windows separator
 //            indexOf = wholeText.indexOf("\\", offSetAtCursor-1);
         }
         return indexOf;
@@ -113,12 +113,12 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
     }
 
     @Override
-    public int[] getHyperlinkSpan(Document doc, int position) {
+    public int[] getHyperlinkSpan(Document doc, int offset, HyperlinkType type) {
         return new int[]{startOffset, endOffset};
     }
 
     @Override
-    public void performClickAction(Document doc, int position) {
+    public void performClickAction(Document doc, int position, HyperlinkType type) {
         fileToOpen = findResourceFileObject(doc, linkTarget);
         if (fileToOpen == null) {
             StatusDisplayer.getDefault().setStatusText("Invalid path :" + linkTarget);
@@ -152,6 +152,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
         if (resource.length() < 2) {
             return false;
         }
+        //TODO check if file exists
 
 //        String lowerCaseResource = resource.substring(1, resource.length()-1).toLowerCase();
 //        if (lowerCaseResource.endsWith(".jsp")
@@ -163,4 +164,25 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
 //        return false;
         return true;
     }
+
+    @Override
+    public Set<HyperlinkType> getSupportedHyperlinkTypes() {
+        return EnumSet.of(HyperlinkType.GO_TO_DECLARATION);
+    }
+
+    @Override
+    public String getTooltipText(Document doc, int offset, HyperlinkType type) {
+        //no tooltip until https://netbeans.org/bugzilla/show_bug.cgi?id=236249 is resolved
+        return null;
+        
+//        //call calculation first, because the order of method calls in undefined (by API doc)
+//        boolean hyperlinkPoint = isHyperlinkPoint(doc, offset, type);
+//         StatusDisplayer.getDefault().setStatusText(""+offset+"/"+type);
+//        if (hyperlinkPoint) {
+//            return "Open " + linkTarget;
+//        } else {
+//            return null;
+//        }
+    }
+
 }
