@@ -20,11 +20,7 @@ import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.util.Exceptions;
 
-/**
- * Code based on https://github.com/hantsy/click4nb/blob/master/click.support/src/org/netbeans/modules/web/click/editor/hyperlinks/ClickHyperlinkProvider.java
- *
- * @author markiewb
- */
+
 @MimeRegistration(mimeType = "text/x-java", service = HyperlinkProvider.class)
 public class ResourceHyperlinkProvider implements HyperlinkProvider {
 
@@ -72,12 +68,26 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
                     && resourceToken.length() > 2) { // identifier must be longer than "" string
                 startOffset = resourceToken.offset(hi) + 1;
                 endOffset = resourceToken.offset(hi) + resourceToken.length() - 1;
+                // src/main
+//                endOffset=offset;
 
                 if (startOffset > endOffset) {
                     endOffset = startOffset;
                 }
-
-                linkTarget = resourceToken.text().subSequence(1, resourceToken.length() - 1).toString();
+//                String fromStart = resourceToken.text().subSequence(1, offset-startOffset).toString();
+                String fromStart="";
+                final String wholeText = resourceToken.text().subSequence(1, resourceToken.length() - 1).toString();
+                
+                final int offSetAtCursor = (offset-startOffset)+1;
+                int indexOf = getIndexOfNextPathSeparator(wholeText, offSetAtCursor);
+                if (indexOf<0){
+                    indexOf=wholeText.length();
+                }
+                endOffset=startOffset+Math.min(indexOf+1, wholeText.length());
+                final String innerSelectedText = resourceToken.text().subSequence(1, 1+Math.min(indexOf+1, wholeText.length())).toString();
+                linkTarget = innerSelectedText;
+                
+                StatusDisplayer.getDefault().setStatusText("Path :" + startOffset + "/"+endOffset+"/"+offset + "//"+(offset-startOffset)+"="+innerSelectedText);
                 return true;
             }
 
@@ -85,6 +95,15 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
             Exceptions.printStackTrace(ex);
         }
         return false;
+    }
+
+    private int getIndexOfNextPathSeparator(final String wholeText, final int offSetAtCursor) {
+        int indexOf = wholeText.indexOf("/", offSetAtCursor-1);
+        if (indexOf<0){
+            //fallback use windows separator
+//            indexOf = wholeText.indexOf("\\", offSetAtCursor-1);
+        }
+        return indexOf;
     }
 
     private FileObject findResourceFileObject(Document doc, String path) {
@@ -142,6 +161,6 @@ public class ResourceHyperlinkProvider implements HyperlinkProvider {
 //            return true;
 //        }
 //        return false;
-        return false;
+        return true;
     }
 }
