@@ -1,8 +1,12 @@
 package de.markiewb.plugins.netbeans.resourcehyperlink;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.swing.JComboBox;
@@ -28,7 +32,6 @@ import org.netbeans.modules.editor.NbEditorUtilities;
 import org.openide.DialogDescriptor;
 import org.openide.DialogDisplayer;
 import org.openide.NotifyDescriptor;
-import org.openide.awt.StatusDisplayer;
 import org.openide.cookies.EditCookie;
 import org.openide.cookies.OpenCookie;
 import org.openide.filesystems.FileObject;
@@ -36,25 +39,37 @@ import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.util.Exceptions;
 
+/**
+ * Hyperlink provider opening resources which are encoded in string literals
+ * within java files.
+ * <p>
+ * For example: {@code "com/foo/Bar.java"} will be resolved in the source-roots
+ * of
+ * {@link JavaProjectConstants.SOURCES_TYPE_JAVA}, {@link JavaProjectConstants.SOURCES_TYPE_RESOURCES}, {@link JavaProjectConstants.SOURCES_HINT_TEST}
+ * </p>
+ * If there are multiple matches a dialog will pop up and let the user choose.
+ *
+ * @author markiewb
+ */
 @MimeRegistration(mimeType = "text/x-java", service = HyperlinkProviderExt.class)
 public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
-    private int startOffset;
-    private int endOffset;
-
-    private String linkTarget;
-
     @Override
     public boolean isHyperlinkPoint(Document document, int offset, HyperlinkType type) {
+        ResultTO matches = findResources(document, offset);
+        return matches.isValid();
+    }
+
+    private ResultTO findResources(Document document, int offset) {
         if (!(document instanceof BaseDocument)) {
-            return false;
+            return ResultTO.createEmpty();
         }
 
         BaseDocument doc = (BaseDocument) document;
         JTextComponent target = Utilities.getFocusedComponent();
 
         if ((target == null) || (target.getDocument() != doc)) {
-            return false;
+            return ResultTO.createEmpty();
         }
 
         try {
@@ -65,7 +80,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             boolean lastTokenInDocument = !ts.moveNext();
             if (lastTokenInDocument) {
                 // end of the document
-                return false;
+                return ResultTO.createEmpty();
             }
             while (ts.token() == null || ts.token().id() == JavaTokenId.WHITESPACE) {
                 ts.movePrevious();
@@ -74,64 +89,43 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             Token<JavaTokenId> resourceToken = ts.offsetToken();
             if (null == resourceToken
                     || resourceToken.length() <= 2) {
-                return false;
+                return ResultTO.createEmpty();
             }
 
-            if (containResource(resourceToken.text().toString())
-                    && resourceToken.id() == JavaTokenId.STRING_LITERAL // identified must be string
+            if (resourceToken.id() == JavaTokenId.STRING_LITERAL // identified must be string
                     && resourceToken.length() > 2) { // identifier must be longer than "" string
-                startOffset = resourceToken.offset(hi) + 1;
-                endOffset = resourceToken.offset(hi) + resourceToken.length() - 1;
+                int startOffset = resourceToken.offset(hi) + 1;
 
-                if (startOffset > endOffset) {
-                    endOffset = startOffset;
-                }
                 final String wholeText = resourceToken.text().subSequence(1, resourceToken.length() - 1).toString();
 
-                final int offSetAtCursor = (offset - startOffset) + 1;
-                int indexOf = getIndexOfNextPathSeparator(wholeText, offSetAtCursor);
-                if (indexOf < 0) {
-                    indexOf = wholeText.length();
-                }
-                endOffset = startOffset + Math.min(indexOf + 1, wholeText.length());
-                final String innerSelectedText = resourceToken.text().subSequence(1, 1 + Math.min(indexOf + 1, wholeText.length())).toString();
-                linkTarget = innerSelectedText;
+                int endOffset = startOffset + wholeText.length();
+                String linkTarget = wholeText;
 
-                StatusDisplayer.getDefault().setStatusText("Path :" + startOffset + "/" + endOffset + "/" + offset + "//" + (offset - startOffset) + "=" + innerSelectedText);
-                return true;
+//                StatusDisplayer.getDefault().setStatusText("Path :" + startOffset + "/" + endOffset + "/" + offset + "//" + (offset - startOffset) + "=" + innerSelectedText);
+                Set<FileObject> findFiles = findFiles(doc, linkTarget);
+                return ResultTO.create(startOffset, endOffset, linkTarget, findFiles);
             }
 
         } catch (BadLocationException ex) {
             Exceptions.printStackTrace(ex);
         }
-        return false;
+        return ResultTO.createEmpty();
     }
 
-    private int getIndexOfNextPathSeparator(final String wholeText, final int offSetAtCursor) {
-        int indexOf = wholeText.indexOf("/", offSetAtCursor - 1);
-        if (indexOf < 0) {
-            //TODO fallback use windows separator
-//            indexOf = wholeText.indexOf("\\", offSetAtCursor-1);
-        }
-        return indexOf;
-    }
-
-     private List<FileObject> findFiles(Document doc, String path) {
-                 final FileObject fileInCurrentDirectory = getMatchingFileInCurrentDirectory(doc, path);
-
+    private Set<FileObject> findFiles(Document doc, String path) {
+        final FileObject fileInCurrentDirectory = getMatchingFileInCurrentDirectory(doc, path);
 
         //fallback to search in all source roots
         FileObject docFO = NbEditorUtilities.getFileObject(doc);
-        List<FileObject> foundMatches =new ArrayList<FileObject>();
-                
-        foundMatches.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
-        
-        if (null != fileInCurrentDirectory) {
-            foundMatches.add(fileInCurrentDirectory);
-        }
-        return foundMatches;
-     }
+        Set<FileObject> matches = new HashSet<FileObject>();
 
+        matches.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
+
+        if (null != fileInCurrentDirectory) {
+            matches.add(fileInCurrentDirectory);
+        }
+        return matches;
+    }
 
     private List<FileObject> getMatchingFilesFromSourceRoots(Project p, String path) {
         List<SourceGroup> list = new ArrayList<SourceGroup>();
@@ -157,41 +151,49 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     @Override
     public int[] getHyperlinkSpan(Document doc, int offset, HyperlinkType type) {
-        return new int[]{startOffset, endOffset};
+        ResultTO matches = findResources(doc, offset);
+        if (matches.isValid()) {
+            return new int[]{matches.startOffsetInLiteral, matches.endOffsetInLiteral};
+        } else {
+            return new int[]{-1, -1};
+        }
     }
 
     @Override
     public void performClickAction(Document doc, int position, HyperlinkType type) {
-        List<FileObject> foundMatches = findFiles(doc, linkTarget);
-        final Project project = FileOwnerQuery.getOwner(NbEditorUtilities.getFileObject(doc));        
-        FileObject fileToOpen = getSingleMatchOrAskForUserChoice(foundMatches, project);        
+        ResultTO matches = findResources(doc, position);
+        if (matches.isValid()) {
+            Collection<FileObject> foundMatches = matches.foundFiles;
+            final Project project = FileOwnerQuery.getOwner(NbEditorUtilities.getFileObject(doc));
+            FileObject fileToOpen = getSingleMatchOrAskForUserChoice(foundMatches, project);
 
-        if (fileToOpen == null) {
-            StatusDisplayer.getDefault().setStatusText("Invalid path :" + linkTarget);
-            return;
+            if (fileToOpen == null) {
+//                StatusDisplayer.getDefault().setStatusText("Invalid path: " + findMatches.linkTarget);
+                return;
+            }
+            openInEditor(fileToOpen);
         }
-        openInEditor(fileToOpen);
     }
 
-    private FileObject getSingleMatchOrAskForUserChoice(List<FileObject> foundMatches, Project project) {
+    private FileObject getSingleMatchOrAskForUserChoice(Collection<FileObject> foundMatches, Project project) {
         if (foundMatches.size() == 1) {
-            return foundMatches.get(0);
+            return foundMatches.iterator().next();
         }
-        if (foundMatches.size() >= 2) {
-            List<String> list1 = new ArrayList<String>();
+        List<FileObject> indexedFilePaths = new ArrayList<FileObject>(foundMatches);
 
-            for (FileObject fileObject : foundMatches) {
+        if (foundMatches.size() >= 2) {
+            List<String> collector = new ArrayList<String>();
+
+            for (FileObject fileObject : indexedFilePaths) {
                 //convert absolute path to relative regarding the project
                 String path1 = fileObject.getPath().substring(project.getProjectDirectory().getPath().length());
-                list1.add(path1);
+                collector.add(path1);
             }
-            String[] strings = list1.toArray(new String[list1.size()]);
 
-            final JComboBox<String> jList = new JComboBox<String>(strings);
+            //TODO replace with floating listbox like "Open implementations"
+            final JComboBox<String> jList = new JComboBox<String>(collector.toArray(new String[collector.size()]));
             if (DialogDisplayer.getDefault().notify(new DialogDescriptor(jList, "Multiple files found. Please choose:")) == NotifyDescriptor.OK_OPTION) {
-                return foundMatches.get(jList.getSelectedIndex());
-            } else {
-                //
+                return indexedFilePaths.get(jList.getSelectedIndex());
             }
         }
         return null;
@@ -218,23 +220,6 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     }
 
-    private boolean containResource(String resource) {
-        if (resource.length() < 2) {
-            return false;
-        }
-        //TODO check if file exists
-
-//        String lowerCaseResource = resource.substring(1, resource.length()-1).toLowerCase();
-//        if (lowerCaseResource.endsWith(".jsp")
-//                || lowerCaseResource.endsWith(".htm")
-//                || lowerCaseResource.endsWith(".css")
-//                || lowerCaseResource.endsWith(".js")) {
-//            return true;
-//        }
-//        return false;
-        return true;
-    }
-
     @Override
     public Set<HyperlinkType> getSupportedHyperlinkTypes() {
         return EnumSet.of(HyperlinkType.GO_TO_DECLARATION);
@@ -242,17 +227,45 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     @Override
     public String getTooltipText(Document doc, int offset, HyperlinkType type) {
-        //no tooltip until https://netbeans.org/bugzilla/show_bug.cgi?id=236249 is resolved
-        return null;
+        ResultTO result = findResources(doc, offset);
+        if (!result.isValid()) {
+            return null;
+        }
 
-//        //call calculation first, because the order of method calls in undefined (by API doc)
-//        boolean hyperlinkPoint = isHyperlinkPoint(doc, offset, type);
-//         StatusDisplayer.getDefault().setStatusText(""+offset+"/"+type);
-//        if (hyperlinkPoint) {
-//            return "Open " + linkTarget;
-//        } else {
-//            return null;
-//        }
+        Collection<FileObject> findMatches = result.foundFiles;
+        if (findMatches.size() < 0) {
+            return null;
+        }
+        return MessageFormat.format("<html>Open <b>{0}</b>{1,choice,0#|1#|1< ({1} matches)}", result.linkTarget, findMatches.size());
+    }
+
+    private static class ResultTO {
+
+        int startOffsetInLiteral;
+        int endOffsetInLiteral;
+
+        String linkTarget;
+
+        ResultTO(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
+            this.startOffsetInLiteral = startOffset;
+            this.endOffsetInLiteral = endOffset;
+            this.linkTarget = linkTarget;
+            this.foundFiles = foundFiles;
+        }
+        Collection<FileObject> foundFiles;
+
+        boolean isValid() {
+            return !foundFiles.isEmpty();
+        }
+
+        static ResultTO createEmpty() {
+            return new ResultTO(-1, -1, null, Collections.<FileObject>emptySet());
+        }
+
+        static ResultTO create(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
+            return new ResultTO(startOffset, endOffset, linkTarget, foundFiles);
+        }
+
     }
 
 }

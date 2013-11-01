@@ -4,7 +4,7 @@
 <application xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.zeroturnaround.com"
              txsi:schemaLocation="http://www.zeroturnaround.com http://www.zeroturnaround.com/alderaan/rebel-2_0.xsd">
 	<classpath>
-		<dir name="D:\temp\NetBeansProjects\ResourceHyperlink4Java\target\classes"/>
+		<dir name="D:\ws\nb-resource-hyperlink-at-cursor\target\classes"/>
 
 	</classpath>
   

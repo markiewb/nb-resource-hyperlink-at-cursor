@@ -12,7 +12,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <netbeans.run.params.ide/>
-        <netbeans.run.params>-J-noverify -J-javaagent:C:\Users\markiewb\AppData\Roaming\NetBeans\7.4rc1\jrebel\jrebel.jar -J-Drebel.log=true ${netbeans.run.params.ide}</netbeans.run.params>
+        <netbeans.run.params>-J-noverify -J-Xbootclasspath/p:C:\Users\markiewb\AppData\Local\Temp\rebelboot.jar -J-javaagent:C:\Users\markiewb\AppData\Roaming\NetBeans\7.4\jrebel\jrebel.jar -J-Drebel.log=true  ${netbeans.run.params.ide}</netbeans.run.params>
     </properties>
 
     <repositories>
@@ -109,7 +109,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>nbm-maven-plugin</artifactId>
-                <version>3.11</version>
+                <version>3.11.1</version>
                 <extensions>true</extensions>
             </plugin>
 
