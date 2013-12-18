@@ -189,6 +189,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
                 String path1 = fileObject.getPath().substring(project.getProjectDirectory().getPath().length());
                 collector.add(path1);
             }
+            Collections.sort(collector);
 
             //TODO replace with floating listbox like "Open implementations"
             final JComboBox<String> jList = new JComboBox<String>(collector.toArray(new String[collector.size()]));
