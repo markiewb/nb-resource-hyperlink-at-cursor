@@ -120,7 +120,16 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
 //                StatusDisplayer.getDefault().setStatusText("Path :" + startOffset + "/" + endOffset + "/" + offset + "//" + (offset - startOffset) + "=" + innerSelectedText);
                 Set<FileObject> findFiles = findFiles(doc, linkTarget);
-                return ResultTO.create(startOffset, endOffset, linkTarget, findFiles);
+                if (findFiles.size() == 1)
+                {
+                    //show first file match
+                    FileObject next = findFiles.iterator().next();
+                    return ResultTO.create(startOffset, endOffset, next.getNameExt(), findFiles);
+                }
+                else
+                {
+                    return ResultTO.create(startOffset, endOffset, linkTarget, findFiles);
+                }
             }
 
         } catch (BadLocationException ex) {
@@ -130,27 +139,33 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     }
 
     private Set<FileObject> findFiles(Document doc, String path) {
+        Set<FileObject> result = new HashSet<FileObject>();
+        
+        //exists in current dir? exact matching
         final FileObject fileInCurrentDirectory = getMatchingFileInCurrentDirectory(doc, path);
+        if (null != fileInCurrentDirectory) {
+            result.add(fileInCurrentDirectory);
+        }
+        //exists in current dir? partial matching
+        Collection<FileObject> partialMatches = partialMatches(path, NbEditorUtilities.getFileObject(doc).getParent().getChildren());
+        if (null != partialMatches) {
+            result.addAll(partialMatches);
+        }
 
         //fallback to search in all source roots
         FileObject docFO = NbEditorUtilities.getFileObject(doc);
-        //fallback to support absolute paths
-        FileObject absolutePath=null;
-        if (new File(path).exists()){
-            absolutePath = FileUtil.toFileObject(FileUtil.normalizeFile(new File(path)));
-        };
         
-        Set<FileObject> matches = new HashSet<FileObject>();
 
-        matches.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
-        if (null != fileInCurrentDirectory) {
-            matches.add(fileInCurrentDirectory);
+        result.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
+        //fallback to support absolute paths - exact match
+        if (new File(path).exists()){
+            FileObject absolutePath = FileUtil.toFileObject(FileUtil.normalizeFile(new File(path)));
+            result.add(absolutePath);
         }
-        if (null != absolutePath) {
-            matches.add(absolutePath);
-        }
+        //partial match in current dir
+        
 
-        return matches;
+        return result;
     }
 
     private List<FileObject> getMatchingFilesFromSourceRoots(Project p, String path) {
@@ -161,12 +176,35 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_RESOURCES)));
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_TEST)));
         for (SourceGroup sourceGroup : list) {
+            
+            //partial matches
+            Collection<FileObject> partialMatches = partialMatches(path, sourceGroup.getRootFolder().getChildren());
+            foundMatches.addAll(partialMatches);
+            
+            //exact matches
             FileObject fileObject = sourceGroup.getRootFolder().getFileObject(path);
             if (fileObject != null) {
                 foundMatches.add(fileObject);
             }
         }
         return foundMatches;
+    }
+
+    private Collection<FileObject> partialMatches(final String searchToken, FileObject[] candidates)
+    {
+        List<FileObject> result=new ArrayList<FileObject>();
+        final String lowerCasePath = searchToken.toLowerCase();
+        for (FileObject fileObject : candidates)
+        {
+            File normalizeFile = FileUtil.normalizeFile(FileUtil.toFile(fileObject));
+            //partial matches
+            //f.e. "def" matches "abcdefg.txt" and "defcon.png"
+            boolean containsPartialMatches = normalizeFile.getAbsolutePath().toLowerCase().contains(lowerCasePath);
+            if (containsPartialMatches){
+                result.add(fileObject);
+            }
+        }
+        return result;
     }
 
     private FileObject getMatchingFileInCurrentDirectory(Document doc, String path) {
