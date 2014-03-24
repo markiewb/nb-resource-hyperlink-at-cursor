@@ -15,6 +15,7 @@
  */
 package de.markiewb.netbeans.plugins.resourcehyperlink;
 
+import de.markiewb.netbeans.plugins.resourcehyperlink.options.ConfigPanel;
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -25,6 +26,9 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.prefs.PreferenceChangeEvent;
+import java.util.prefs.PreferenceChangeListener;
+import java.util.prefs.Preferences;
 import javax.swing.JComboBox;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -55,6 +59,7 @@ import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.util.Exceptions;
+import org.openide.util.NbPreferences;
 
 /**
  * Hyperlink provider opening resources which are encoded in string literals
@@ -70,6 +75,23 @@ import org.openide.util.Exceptions;
  */
 @MimeRegistration(mimeType = "text/x-java", service = HyperlinkProviderExt.class)
 public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
+
+    boolean enablePartialMatches;
+
+    public ResourceHyperlinkProvider() {
+        Preferences pref = NbPreferences.forModule(ConfigPanel.class);
+        enablePartialMatches = pref.getBoolean(ConfigPanel.PARTIAL_MATCHING, ConfigPanel.PARTIAL_MATCHING_DEFAULT);
+        pref.addPreferenceChangeListener(new PreferenceChangeListener() {
+
+            @Override
+            public void preferenceChange(PreferenceChangeEvent evt) {
+                if (evt.getKey().equals(ConfigPanel.PARTIAL_MATCHING)) {
+                    enablePartialMatches = evt.getNode().getBoolean(ConfigPanel.PARTIAL_MATCHING, ConfigPanel.PARTIAL_MATCHING_DEFAULT);
+                }
+            }
+        });
+    }
+    
 
     @Override
     public boolean isHyperlinkPoint(Document document, int offset, HyperlinkType type) {
@@ -99,6 +121,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
                 // end of the document
                 return ResultTO.createEmpty();
             }
+            
             while (ts.token() == null || ts.token().id() == JavaTokenId.WHITESPACE) {
                 ts.movePrevious();
             }
@@ -120,6 +143,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
 //                StatusDisplayer.getDefault().setStatusText("Path :" + startOffset + "/" + endOffset + "/" + offset + "//" + (offset - startOffset) + "=" + innerSelectedText);
                 Set<FileObject> findFiles = findFiles(doc, linkTarget);
+                if (findFiles.isEmpty()) {
+                    return ResultTO.createEmpty();
+                }
                 return ResultTO.create(startOffset, endOffset, linkTarget, findFiles);
             }
 
@@ -130,30 +156,34 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     }
 
     private Set<FileObject> findFiles(Document doc, String path) {
+        Set<FileObject> result = new HashSet<FileObject>();
+
+        //a) exists in current dir? exact matching
         final FileObject fileInCurrentDirectory = getMatchingFileInCurrentDirectory(doc, path);
-
-        //fallback to search in all source roots
-        FileObject docFO = NbEditorUtilities.getFileObject(doc);
-        //fallback to support absolute paths
-        FileObject absolutePath=null;
-        if (new File(path).exists()){
-            absolutePath = FileUtil.toFileObject(FileUtil.normalizeFile(new File(path)));
-        };
-        
-        Set<FileObject> matches = new HashSet<FileObject>();
-
-        matches.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
         if (null != fileInCurrentDirectory) {
-            matches.add(fileInCurrentDirectory);
+            result.add(fileInCurrentDirectory);
         }
-        if (null != absolutePath) {
-            matches.add(absolutePath);
+        
+        //b) exists in current dir? partial matching
+        Collection<FileObject> partialMatches = partialMatches(path, NbEditorUtilities.getFileObject(doc).getParent().getChildren());
+        if (null != partialMatches) {
+            result.addAll(partialMatches);
         }
 
-        return matches;
+        //c) fallback to search in all source roots
+        FileObject docFO = NbEditorUtilities.getFileObject(doc);
+        result.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
+
+        //d) fallback to support absolute paths - exact match
+        if (new File(path).exists() && !FileUtil.toFileObject(FileUtil.normalizeFile(new File(path))).isFolder()) {
+            FileObject absolutePath = FileUtil.toFileObject(FileUtil.normalizeFile(new File(path)));
+            result.add(absolutePath);
+        }
+
+        return result;
     }
 
-    private List<FileObject> getMatchingFilesFromSourceRoots(Project p, String path) {
+    private List<FileObject> getMatchingFilesFromSourceRoots(Project p, String searchToken) {
         List<SourceGroup> list = new ArrayList<SourceGroup>();
         List<FileObject> foundMatches = new ArrayList<FileObject>();
         final Sources sources = ProjectUtils.getSources(p);
@@ -161,18 +191,56 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_RESOURCES)));
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_TEST)));
         for (SourceGroup sourceGroup : list) {
-            FileObject fileObject = sourceGroup.getRootFolder().getFileObject(path);
-            if (fileObject != null) {
+
+            //partial matches
+            Collection<FileObject> partialMatches = partialMatches(searchToken, sourceGroup.getRootFolder().getChildren());
+            foundMatches.addAll(partialMatches);
+
+            //exact matches
+            FileObject fileObject = sourceGroup.getRootFolder().getFileObject(searchToken);
+            if (fileObject != null && !fileObject.isFolder()) {
                 foundMatches.add(fileObject);
             }
         }
         return foundMatches;
     }
 
+    private Collection<FileObject> partialMatches(final String searchToken, FileObject[] candidates) {
+        List<FileObject> result = new ArrayList<FileObject>();
+        final String lowerCaseToken = searchToken.toLowerCase();
+        for (FileObject fileObject : candidates) {
+            if (fileObject.isFolder()) {
+                continue;
+            }
+
+            if (enablePartialMatches) {
+                //partial matches
+                //f.e. "def" matches "abcdefg.txt" and "defcon.png"
+                boolean containsPartialMatches = fileObject.getNameExt().toLowerCase().contains(lowerCaseToken);
+                if (containsPartialMatches) {
+                    result.add(fileObject);
+                }
+
+            } else {
+                //exact matching
+                boolean containsPartialMatches = fileObject.getNameExt().toLowerCase().equals(lowerCaseToken);
+                if (containsPartialMatches) {
+                    result.add(fileObject);
+                }
+            }
+        }
+        return result;
+    }
+
     private FileObject getMatchingFileInCurrentDirectory(Document doc, String path) {
         FileObject docFO = NbEditorUtilities.getFileObject(doc);
         FileObject currentDir = docFO.getParent();
-        return currentDir.getFileObject(path);
+        final FileObject fileObject = currentDir.getFileObject(path);
+        if (null != fileObject && !fileObject.isFolder()) {
+            return fileObject;
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -264,35 +332,6 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             return null;
         }
         return MessageFormat.format("<html>Open <b>{0}</b>{1,choice,0#|1#|1< ({1} matches)}", result.linkTarget, findMatches.size());
-    }
-
-    private static class ResultTO {
-
-        int startOffsetInLiteral;
-        int endOffsetInLiteral;
-
-        String linkTarget;
-
-        ResultTO(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
-            this.startOffsetInLiteral = startOffset;
-            this.endOffsetInLiteral = endOffset;
-            this.linkTarget = linkTarget;
-            this.foundFiles = foundFiles;
-        }
-        Collection<FileObject> foundFiles;
-
-        boolean isValid() {
-            return !foundFiles.isEmpty();
-        }
-
-        static ResultTO createEmpty() {
-            return new ResultTO(-1, -1, null, Collections.<FileObject>emptySet());
-        }
-
-        static ResultTO create(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
-            return new ResultTO(startOffset, endOffset, linkTarget, foundFiles);
-        }
-
     }
 
 }
