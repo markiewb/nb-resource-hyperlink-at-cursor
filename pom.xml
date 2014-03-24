@@ -157,6 +157,12 @@ Features:
 
 &lt;img src="https://raw.github.com/markiewb/nb-resource-hyperlink-at-cursor/master/doc/screenshot-1.0.0.png"/&gt;
 
+&lt;h2&gt;Updates in 1.X.X:&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/4"&gt;Issue 4&lt;/a&gt;]: Fixed: Provide a valid category for the update center&lt;/li&gt;
+&lt;/ul&gt;
+
+
 &lt;h2&gt;Updates in 1.0.0:&lt;/h2&gt;
 &lt;ul&gt;
 &lt;li&gt;initial version - implements the RFE  &lt;a href="https://netbeans.org/bugzilla/show_bug.cgi?id=237902"&gt;https://netbeans.org/bugzilla/show_bug.cgi?id=237902&lt;/a&gt;&lt;/li&gt;
