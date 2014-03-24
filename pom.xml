@@ -4,7 +4,7 @@
 
     <groupId>de.markiewb.netbeans.plugins</groupId>
     <artifactId>open-file-at-cursor-plugin</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <packaging>nbm</packaging>
 
     <properties>
@@ -121,6 +121,7 @@
                     <author>Benno Markiewicz (benno.markiewicz@googlemail.com)</author>
                     <homePageUrl>https://github.com/markiewb/nb-resource-hyperlink-at-cursor</homePageUrl>
                     <keystore>nbproject/private/keystore</keystore>
+                    <keystorealias>myself</keystorealias>
                     <licenseName>Apache 2.0</licenseName>
                 </configuration>
             </plugin>
@@ -155,6 +156,7 @@ Features:
 &lt;li&gt;Supports relative paths regarding to the current file&lt;/li&gt;
 &lt;li&gt;Supports relative paths regarding to the current project (source, test and resources roots)&lt;/li&gt;
 &lt;li&gt;Supports absolute paths&lt;/li&gt;
+&lt;li&gt;Support partial matches (relative to current dir and source roots) - can be disabled at Options|Misc&lt;/li&gt;
 &lt;/ul&gt;
 
 
@@ -162,8 +164,9 @@ Features:
 
 &lt;img src="https://raw.github.com/markiewb/nb-resource-hyperlink-at-cursor/master/doc/screenshot-1.0.0.png"/&gt;
 
-&lt;h2&gt;Updates in 1.X.X:&lt;/h2&gt;
+&lt;h2&gt;Updates in 1.1.0:&lt;/h2&gt;
 &lt;ul&gt;
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/1"&gt;Feature 1&lt;/a&gt;]: Support of partial matching (+ options dialog)&lt;/li&gt;
 &lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/4"&gt;Issue 4&lt;/a&gt;]: Fixed: Provide a valid category for the update center&lt;/li&gt;
 &lt;/ul&gt;
 
