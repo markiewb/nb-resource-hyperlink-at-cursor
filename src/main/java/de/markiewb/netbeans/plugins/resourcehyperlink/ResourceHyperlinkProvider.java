@@ -15,6 +15,7 @@
  */
 package de.markiewb.netbeans.plugins.resourcehyperlink;
 
+import de.markiewb.netbeans.plugins.resourcehyperlink.options.ConfigPanel;
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -25,6 +26,9 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.prefs.PreferenceChangeEvent;
+import java.util.prefs.PreferenceChangeListener;
+import java.util.prefs.Preferences;
 import javax.swing.JComboBox;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -55,6 +59,7 @@ import org.openide.filesystems.FileUtil;
 import org.openide.loaders.DataObject;
 import org.openide.loaders.DataObjectNotFoundException;
 import org.openide.util.Exceptions;
+import org.openide.util.NbPreferences;
 
 /**
  * Hyperlink provider opening resources which are encoded in string literals
@@ -71,7 +76,22 @@ import org.openide.util.Exceptions;
 @MimeRegistration(mimeType = "text/x-java", service = HyperlinkProviderExt.class)
 public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
-    boolean enablePartialMatches = true;
+    boolean enablePartialMatches;
+
+    public ResourceHyperlinkProvider() {
+        Preferences pref = NbPreferences.forModule(ConfigPanel.class);
+        enablePartialMatches = pref.getBoolean(ConfigPanel.PARTIAL_MATCHING, ConfigPanel.PARTIAL_MATCHING_DEFAULT);
+        pref.addPreferenceChangeListener(new PreferenceChangeListener() {
+
+            @Override
+            public void preferenceChange(PreferenceChangeEvent evt) {
+                if (evt.getKey().equals(ConfigPanel.PARTIAL_MATCHING)) {
+                    enablePartialMatches = evt.getNode().getBoolean(ConfigPanel.PARTIAL_MATCHING, ConfigPanel.PARTIAL_MATCHING_DEFAULT);
+                }
+            }
+        });
+    }
+    
 
     @Override
     public boolean isHyperlinkPoint(Document document, int offset, HyperlinkType type) {
