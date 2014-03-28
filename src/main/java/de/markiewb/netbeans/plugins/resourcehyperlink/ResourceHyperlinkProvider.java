@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.prefs.PreferenceChangeEvent;
 import java.util.prefs.PreferenceChangeListener;
 import java.util.prefs.Preferences;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
@@ -276,19 +278,29 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         List<FileObject> indexedFilePaths = new ArrayList<FileObject>(foundMatches);
 
         if (foundMatches.size() >= 2) {
-            List<String> collector = new ArrayList<String>();
+            List<FileObjectTuple> collector = new ArrayList<FileObjectTuple>();
 
             for (FileObject fileObject : indexedFilePaths) {
                 //convert absolute path to relative regarding the project
                 String path1 = fileObject.getPath().substring(project.getProjectDirectory().getPath().length());
-                collector.add(path1);
+                collector.add(new FileObjectTuple(fileObject, path1));
             }
-            Collections.sort(collector);
+            Collections.sort(collector, new Comparator<FileObjectTuple>() {
+                @Override
+                public int compare(FileObjectTuple o1, FileObjectTuple o2) {
+                    return o1.getSecond().compareToIgnoreCase(o2.getSecond());
+                }
+            });
 
+            DefaultComboBoxModel<FileObjectTuple> defaultComboBoxModel = new DefaultComboBoxModel<FileObjectTuple>();
+            for (FileObjectTuple item : collector) {
+                defaultComboBoxModel.addElement(item);
+            }
+            
             //TODO replace with floating listbox like "Open implementations"
-            final JComboBox<String> jList = new JComboBox<String>(collector.toArray(new String[collector.size()]));
+            final JComboBox<FileObjectTuple> jList = new JComboBox<FileObjectTuple>(defaultComboBoxModel);
             if (DialogDisplayer.getDefault().notify(new DialogDescriptor(jList, "Multiple files found. Please choose:")) == NotifyDescriptor.OK_OPTION) {
-                return indexedFilePaths.get(jList.getSelectedIndex());
+                return defaultComboBoxModel.getElementAt(jList.getSelectedIndex()).getFirst();
             }
         }
         return null;
@@ -332,6 +344,38 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             return null;
         }
         return MessageFormat.format("<html>Open <b>{0}</b>{1,choice,0#|1#|1< ({1} matches)}", result.linkTarget, findMatches.size());
+    }
+
+    private static class FileObjectTuple extends Pair<FileObject, String> {
+
+        public FileObjectTuple(FileObject first, String second) {
+            super(first, second);
+        }
+
+        @Override
+        public String toString() {
+            return getSecond();
+        }
+    }
+    
+    private static class Pair<First, Second> {
+
+        private final First first;
+        private final Second second;
+
+        private Pair(final First first, final Second second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        public First getFirst() {
+            return first;
+        }
+
+        public Second getSecond() {
+            return second;
+        }
+
     }
 
 }
