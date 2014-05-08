@@ -235,8 +235,14 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     }
 
     private FileObject getMatchingFileInCurrentDirectory(Document doc, String path) {
-        FileObject docFO = NbEditorUtilities.getFileObject(doc);
-        FileObject currentDir = docFO.getParent();
+        final FileObject docFO = NbEditorUtilities.getFileObject(doc);
+        if (null == docFO) {
+            return null;
+        }
+        final FileObject currentDir = docFO.getParent();
+        if (null == currentDir) {
+            return null;
+        }
         final FileObject fileObject = currentDir.getFileObject(path);
         if (null != fileObject && !fileObject.isFolder()) {
             return fileObject;
