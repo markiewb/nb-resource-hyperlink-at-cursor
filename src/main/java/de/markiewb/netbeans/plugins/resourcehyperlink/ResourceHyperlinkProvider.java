@@ -176,7 +176,21 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         FileObject docFO = NbEditorUtilities.getFileObject(doc);
         result.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
 
-        //d) fallback to support absolute paths - exact match
+        //d) fallback to exact matches in project root
+        FileObject docFOX = NbEditorUtilities.getFileObject(doc);
+        Project owner = FileOwnerQuery.getOwner(docFOX);
+        if (null != owner) {
+            FileObject projectDirectory = owner.getProjectDirectory();
+            if (null != projectDirectory) {
+                //exact matches
+                FileObject fileObject = projectDirectory.getFileObject(path);
+                if (fileObject != null && !fileObject.isFolder()) {
+                    result.add(fileObject);
+                }
+            }
+        }
+
+        //e) fallback to support absolute paths - exact match
         if (new File(path).exists() && !FileUtil.toFileObject(FileUtil.normalizeFile(new File(path))).isFolder()) {
             FileObject absolutePath = FileUtil.toFileObject(FileUtil.normalizeFile(new File(path)));
             result.add(absolutePath);
