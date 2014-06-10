@@ -157,12 +157,20 @@ Features:
 &lt;li&gt;Supports relative paths regarding to the current project (source, test and resources roots)&lt;/li&gt;
 &lt;li&gt;Supports absolute paths&lt;/li&gt;
 &lt;li&gt;Support partial matches (relative to current dir and source roots) - can be disabled at Options|Misc&lt;/li&gt;
+&lt;li&gt;Supports paths relative to project directory (since 1.2.0)&lt;/li&gt;
 &lt;/ul&gt;
 
 
 &lt;/p&gt;
 
 &lt;img src="https://raw.github.com/markiewb/nb-resource-hyperlink-at-cursor/master/doc/screenshot-1.0.0.png"/&gt;
+
+&lt;h2&gt;Updates in 1.2.0:&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/8"&gt;Feature 8&lt;/a&gt;]:  Support of paths relative to project directory&lt;/li&gt;
+
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/7"&gt;Issue 7&lt;/a&gt;]: Fixed: NPE at ResourceHyperlinkProvider.findFiles&lt;/li&gt;
+&lt;/ul&gt;
 
 &lt;h2&gt;Updates in 1.1.2:&lt;/h2&gt;
 &lt;ul&gt;
