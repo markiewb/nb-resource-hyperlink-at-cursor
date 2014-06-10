@@ -160,6 +160,12 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     private Set<FileObject> findFiles(Document doc, String path) {
         Set<FileObject> result = new HashSet<FileObject>();
 
+        final FileObject docFO = NbEditorUtilities.getFileObject(doc);
+        Project project = null;
+        if (null != docFO) {
+            project = FileOwnerQuery.getOwner(docFO);
+        }
+
         //a) exists in current dir? exact matching
         final FileObject fileInCurrentDirectory = getMatchingFileInCurrentDirectory(doc, path);
         if (null != fileInCurrentDirectory) {
@@ -167,25 +173,24 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         }
         
         //b) exists in current dir? partial matching
-        Collection<FileObject> partialMatches = partialMatches(path, NbEditorUtilities.getFileObject(doc).getParent().getChildren());
-        if (null != partialMatches) {
-            result.addAll(partialMatches);
+        if (null != docFO && null != docFO.getParent()) {
+            Collection<FileObject> partialMatches = partialMatches(path, docFO.getParent().getChildren());
+            if (null != partialMatches) {
+                result.addAll(partialMatches);
+            }
         }
 
         //c) fallback to search in all source roots
-        FileObject docFO = NbEditorUtilities.getFileObject(doc);
         result.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
 
         //d) fallback to exact matches in project root
-        FileObject docFOX = NbEditorUtilities.getFileObject(doc);
-        Project owner = FileOwnerQuery.getOwner(docFOX);
-        if (null != owner) {
-            FileObject projectDirectory = owner.getProjectDirectory();
+        if (null != project) {
+            FileObject projectDirectory = project.getProjectDirectory();
             if (null != projectDirectory) {
                 //exact matches
-                FileObject fileObject = projectDirectory.getFileObject(path);
-                if (fileObject != null && !fileObject.isFolder()) {
-                    result.add(fileObject);
+                FileObject fileObjectAtProjectRoot = projectDirectory.getFileObject(path);
+                if (fileObjectAtProjectRoot != null && !fileObjectAtProjectRoot.isFolder()) {
+                    result.add(fileObjectAtProjectRoot);
                 }
             }
         }
