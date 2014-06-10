@@ -7,6 +7,8 @@ public class NewMain {
                 + "com/toy/anagrams/lib/WordLibrary.java");
         System.out.println("filename = " + "WordLibrary.java");
         System.out.println("Hyper");
+        System.out.println("./src\\test\\java\\foo\\NewMain.java");
+        System.out.println(".\\src\\test\\java\\foo\\NewMain.java");
         System.out.println("de.markiewb.netbeans.plugins.resourcehyperlink.ResourceHyperlinkProvider");
         System.out.println("de.markiewb.netbeans.plugins.resourcehyperlink.ResourceHyperlinkProvider");
         System.out.println("D:\\ws\\nb-resource-hyperlink-at-cursor\\doc\\screenshot-1.0.0.png");
