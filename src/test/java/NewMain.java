@@ -9,6 +9,12 @@ public class NewMain {
         System.out.println("Hyper");
         System.out.println("./src\\test\\java\\foo\\NewMain.java");
         System.out.println(".\\src\\test\\java\\foo\\NewMain.java");
+        //link to src/main/nbm
+        System.out.println("manifest.mf");
+        //link to src/main/resources
+        System.out.println("de/markiewb/netbeans/plugins/resourcehyperlink/options/Bundle.properties");
+        //link to src/test/resources
+        System.out.println("TestResource.txt");
         System.out.println("de.markiewb.netbeans.plugins.resourcehyperlink.ResourceHyperlinkProvider");
         System.out.println("de.markiewb.netbeans.plugins.resourcehyperlink.ResourceHyperlinkProvider");
         System.out.println("D:\\ws\\nb-resource-hyperlink-at-cursor\\doc\\screenshot-1.0.0.png");
