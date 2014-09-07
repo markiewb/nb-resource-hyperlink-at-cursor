@@ -70,6 +70,7 @@ import org.openide.util.NbPreferences;
  * For example: {@code "com/foo/Bar.java"} will be resolved in the source-roots
  * of
  * {@link JavaProjectConstants.SOURCES_TYPE_JAVA}, {@link JavaProjectConstants.SOURCES_TYPE_RESOURCES}, {@link JavaProjectConstants.SOURCES_HINT_TEST}
+ * and in the Maven-Source-Roots
  * </p>
  * If there are multiple matches a dialog will pop up and let the user choose.
  *
@@ -78,6 +79,16 @@ import org.openide.util.NbPreferences;
 @MimeRegistration(mimeType = "text/x-java", service = HyperlinkProviderExt.class)
 public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
+    
+    /**
+     * Copied from org.netbeans.modules.maven.classpath.MavenSourcesImpl.
+     * These constants where not public API, so they are duplicated in here.
+     * https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/9
+     */
+    public static final String MAVEN_TYPE_OTHER = "Resources"; //NOI18N
+    public static final String MAVEN_TYPE_TEST_OTHER = "TestResources"; //NOI18N
+    public static final String MAVEN_TYPE_GEN_SOURCES = "GeneratedSources"; //NOI18N
+    
     boolean enablePartialMatches;
 
     public ResourceHyperlinkProvider() {
@@ -211,13 +222,17 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA)));
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_RESOURCES)));
         list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_TEST)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_MAIN)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_GEN_SOURCES)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_OTHER)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_TEST_OTHER)));
         for (SourceGroup sourceGroup : list) {
-
+  
             //partial matches
             Collection<FileObject> partialMatches = partialMatches(searchToken, sourceGroup.getRootFolder().getChildren());
             foundMatches.addAll(partialMatches);
 
-            //exact matches
+            //exact matches, relative path
             FileObject fileObject = sourceGroup.getRootFolder().getFileObject(searchToken);
             if (fileObject != null && !fileObject.isFolder()) {
                 foundMatches.add(fileObject);
