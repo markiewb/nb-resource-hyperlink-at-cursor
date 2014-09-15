@@ -4,7 +4,7 @@
 
     <groupId>de.markiewb.netbeans.plugins</groupId>
     <artifactId>open-file-at-cursor-plugin</artifactId>
-    <version>1.2.1</version>
+    <version>1.2.2</version>
     <packaging>nbm</packaging>
 
     <properties>
@@ -165,6 +165,10 @@ Features:
 
 &lt;img src="https://raw.github.com/markiewb/nb-resource-hyperlink-at-cursor/master/doc/screenshot-1.0.0.png"/&gt;
 
+&lt;h2&gt;Updates in 1.2.2:&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/11"&gt;Issue 11&lt;/a&gt;]:  Fixed: NPE&lt;/li&gt;
+&lt;/ul&gt;
 
 &lt;h2&gt;Updates in 1.2.1:&lt;/h2&gt;
 &lt;ul&gt;
