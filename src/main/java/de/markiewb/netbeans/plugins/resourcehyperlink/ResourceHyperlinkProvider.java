@@ -192,7 +192,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         }
 
         //c) fallback to search in all source roots
-        result.addAll(getMatchingFilesFromSourceRoots(FileOwnerQuery.getOwner(docFO), path));
+        if (null != project) {
+            result.addAll(getMatchingFilesFromSourceRoots(project, path));
+        }
 
         //d) fallback to exact matches in project root
         if (null != project) {
