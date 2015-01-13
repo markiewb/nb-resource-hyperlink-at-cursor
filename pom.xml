@@ -4,13 +4,16 @@
 
     <groupId>de.markiewb.netbeans.plugins</groupId>
     <artifactId>open-file-at-cursor-plugin</artifactId>
-    <version>1.2.2</version>
+    <version>1.3.0.1-SNAPSHOT</version>
     <packaging>nbm</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <netbeans.run.params.ide/>
-        <!--<netbeans.run.params>-J-javaagent:C:\Users\markiewb\AppData\Roaming\NetBeans\8.0\jrebel\jrebel.jar -J-Xbootclasspath/p:C:\Users\markiewb\AppData\Local\Temp\rebelboot.jar ${netbeans.run.params.ide}</netbeans.run.params>-->
+<!--        <netbeans.run.params.ide/>
+        <netbeans.run.params>-J-javaagent:C:\Users\markiewb\AppData\Roaming\NetBeans\8.0\jrebel\jrebel.jar -J-Xbootclasspath/p:C:\Users\markiewb\AppData\Local\Temp\rebelboot.jar ${netbeans.run.params.ide}</netbeans.run.params>-->
+    <netbeans.run.params.ide/>
+    <netbeans.run.params>-J-javaagent:"${current.jrebel.agent.path}" -J-Drebel.log=true ${netbeans.run.params.ide}</netbeans.run.params>
+
     </properties>
 
     <repositories>
@@ -105,6 +108,24 @@
             <artifactId>org-netbeans-modules-options-api</artifactId>
             <version>RELEASE721</version>
         </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-modules-java-source</artifactId>
+            <version>RELEASE721</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-api-java-classpath</artifactId>
+            <version>RELEASE721</version>
+            <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>org.netbeans.api</groupId>
+            <artifactId>org-netbeans-libs-javacapi</artifactId>
+            <version>RELEASE721</version>
+            <type>jar</type>
+        </dependency>
     </dependencies>
 
     <build>
@@ -158,12 +179,18 @@ Features:
 &lt;li&gt;Supports absolute paths&lt;/li&gt;
 &lt;li&gt;Support partial matches (relative to current dir and source roots) - can be disabled at Options|Misc&lt;/li&gt;
 &lt;li&gt;Supports paths relative to project directory (since 1.2.0)&lt;/li&gt;
+&lt;li&gt;Supports fully qualified classnames (since 1.3.0)&lt;/li&gt;
 &lt;/ul&gt;
 
 
 &lt;/p&gt;
 
 &lt;img src="https://raw.github.com/markiewb/nb-resource-hyperlink-at-cursor/master/doc/screenshot-1.0.0.png"/&gt;
+
+&lt;h2&gt;Updates in 1.3.0:&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/12"&gt;Feature 12&lt;/a&gt;]:  Support fully qualified classnames&lt;/li&gt;
+&lt;/ul&gt;
 
 &lt;h2&gt;Updates in 1.2.2:&lt;/h2&gt;
 &lt;ul&gt;

@@ -30,14 +30,19 @@ import java.util.Set;
 import java.util.prefs.PreferenceChangeEvent;
 import java.util.prefs.PreferenceChangeListener;
 import java.util.prefs.Preferences;
+import javax.lang.model.element.TypeElement;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.Document;
 import javax.swing.text.JTextComponent;
 import org.netbeans.api.editor.mimelookup.MimeRegistration;
+import org.netbeans.api.java.classpath.ClassPath;
 import org.netbeans.api.java.lexer.JavaTokenId;
 import org.netbeans.api.java.project.JavaProjectConstants;
+import org.netbeans.api.java.source.ClassIndex;
+import org.netbeans.api.java.source.ClasspathInfo;
+import org.netbeans.api.java.source.ElementHandle;
 import org.netbeans.api.lexer.Token;
 import org.netbeans.api.lexer.TokenHierarchy;
 import org.netbeans.api.lexer.TokenSequence;
@@ -72,6 +77,7 @@ import org.openide.util.NbPreferences;
  * {@link JavaProjectConstants.SOURCES_TYPE_JAVA}, {@link JavaProjectConstants.SOURCES_TYPE_RESOURCES}, {@link JavaProjectConstants.SOURCES_HINT_TEST}
  * and in the Maven-Source-Roots
  * </p>
+ * It also resolves FQN classnames. (since 1.3.0)
  * If there are multiple matches a dialog will pop up and let the user choose.
  *
  * @author markiewb
@@ -213,7 +219,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             FileObject absolutePath = FileUtil.toFileObject(FileUtil.normalizeFile(new File(path)));
             result.add(absolutePath);
         }
-
+        //f) support fqn classnames
+        result.addAll(findByClassName(docFO, path));
+        
         return result;
     }
 
@@ -386,6 +394,37 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             return null;
         }
         return MessageFormat.format("<html>Open <b>{0}</b>{1,choice,0#|1#|1< ({1} matches)}", result.linkTarget, findMatches.size());
+    }
+
+    private Collection<FileObject> findByClassName(FileObject fo, String fqnClassName) {
+
+        Set<FileObject> files = new java.util.LinkedHashSet<FileObject>();
+
+        ClassPath bootCp = ClassPath.getClassPath(fo, ClassPath.BOOT);
+        ClassPath compileCp = ClassPath.getClassPath(fo, ClassPath.COMPILE);
+        ClassPath sourcePath = ClassPath.getClassPath(fo, ClassPath.SOURCE);
+        final ClasspathInfo info = ClasspathInfo.create(bootCp, compileCp, sourcePath);
+        int lastIndexOfDot = fqnClassName.lastIndexOf(".");
+        String simpleClassName;
+        if (lastIndexOfDot > 0) {
+            simpleClassName = fqnClassName.substring(lastIndexOfDot + 1);
+        } else {
+            simpleClassName = fqnClassName;
+        }
+
+        final Set<ElementHandle<TypeElement>> result = info.getClassIndex().getDeclaredTypes(simpleClassName, ClassIndex.NameKind.SIMPLE_NAME, EnumSet.of(ClassIndex.SearchScope.SOURCE));
+        for (ElementHandle<TypeElement> te : result) {
+            if (!te.getQualifiedName().equals(fqnClassName)) {
+                continue;
+            }
+
+            final FileObject file = org.netbeans.api.java.source.SourceUtils.getFile(te, info);
+            if (null != file) {
+                files.add(file);
+            }
+        }
+//                System.out.println("files = "+files.size() + files);
+        return files;
     }
 
     private static class FileObjectTuple extends Pair<FileObject, String> {
