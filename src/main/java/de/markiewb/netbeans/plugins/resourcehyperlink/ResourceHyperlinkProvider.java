@@ -412,13 +412,19 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             simpleClassName = fqnClassName;
         }
 
-        final Set<ElementHandle<TypeElement>> result = info.getClassIndex().getDeclaredTypes(simpleClassName, ClassIndex.NameKind.SIMPLE_NAME, EnumSet.of(ClassIndex.SearchScope.SOURCE));
+        /**
+         * Search in own project sources AND in sources of dependencies
+         */
+        final Set<ElementHandle<TypeElement>> result = info.getClassIndex().getDeclaredTypes(simpleClassName, ClassIndex.NameKind.SIMPLE_NAME, EnumSet.of(ClassIndex.SearchScope.SOURCE, ClassIndex.SearchScope.DEPENDENCIES));
         for (ElementHandle<TypeElement> te : result) {
-            if (!te.getQualifiedName().equals(fqnClassName)) {
+            final String qualifiedName = te.getQualifiedName();
+            if (!qualifiedName.equals(fqnClassName)) {
                 continue;
             }
 
+            //NOTE: will not return a file for a class without sources (f.e. maven dep)
             final FileObject file = org.netbeans.api.java.source.SourceUtils.getFile(te, info);
+//            System.out.println(String.format("file = %s from %s", file, te));
             if (null != file) {
                 files.add(file);
             }
