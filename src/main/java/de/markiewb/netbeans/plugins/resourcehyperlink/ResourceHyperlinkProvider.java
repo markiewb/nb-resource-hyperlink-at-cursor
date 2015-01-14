@@ -78,6 +78,7 @@ import org.openide.util.NbPreferences;
  * and in the Maven-Source-Roots
  * </p>
  * It also resolves FQN classnames. (since 1.3.0)
+ * It also resolved files in same package but different source root.
  * If there are multiple matches a dialog will pop up and let the user choose.
  *
  * @author markiewb
@@ -94,6 +95,26 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     public static final String MAVEN_TYPE_OTHER = "Resources"; //NOI18N
     public static final String MAVEN_TYPE_TEST_OTHER = "TestResources"; //NOI18N
     public static final String MAVEN_TYPE_GEN_SOURCES = "GeneratedSources"; //NOI18N
+    public static void openInEditor(FileObject fileToOpen) {
+        DataObject fileDO;
+        try {
+            fileDO = DataObject.find(fileToOpen);
+            if (fileDO != null) {
+                EditCookie editCookie = fileDO.getLookup().lookup(EditCookie.class);
+                if (editCookie != null) {
+                    editCookie.edit();
+                } else {
+                    OpenCookie openCookie = fileDO.getLookup().lookup(OpenCookie.class);
+                    if (openCookie != null) {
+                        openCookie.open();
+                    }
+                }
+            }
+        } catch (DataObjectNotFoundException e) {
+            Exceptions.printStackTrace(e);
+        }
+        
+    }
     
     boolean enablePartialMatches;
 
@@ -197,7 +218,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             }
         }
 
-        //c) fallback to search in all source roots
+        //c) fallback to search partial and exact in all source roots
         if (null != project) {
             result.addAll(getMatchingFilesFromSourceRoots(project, path));
         }
@@ -222,21 +243,16 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         //f) support fqn classnames
         result.addAll(findByClassName(docFO, path));
         
+        //g) fallback to partial matches of file in same package, but different sourceroot
+        if (null != project && null != docFO) {
+            result.addAll(getMatchingFilesFromOtherSourceRootsButWithinSamePackage(project, path, docFO));
+        }        
         return result;
     }
 
     private List<FileObject> getMatchingFilesFromSourceRoots(Project p, String searchToken) {
-        List<SourceGroup> list = new ArrayList<SourceGroup>();
         List<FileObject> foundMatches = new ArrayList<FileObject>();
-        final Sources sources = ProjectUtils.getSources(p);
-        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA)));
-        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_RESOURCES)));
-        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_TEST)));
-        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_MAIN)));
-        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_GEN_SOURCES)));
-        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_OTHER)));
-        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_TEST_OTHER)));
-        for (SourceGroup sourceGroup : list) {
+        for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
   
             //partial matches
             Collection<FileObject> partialMatches = partialMatches(searchToken, sourceGroup.getRootFolder().getChildren());
@@ -356,26 +372,6 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         return null;
     }
 
-    public static void openInEditor(FileObject fileToOpen) {
-        DataObject fileDO;
-        try {
-            fileDO = DataObject.find(fileToOpen);
-            if (fileDO != null) {
-                EditCookie editCookie = fileDO.getLookup().lookup(EditCookie.class);
-                if (editCookie != null) {
-                    editCookie.edit();
-                } else {
-                    OpenCookie openCookie = fileDO.getLookup().lookup(OpenCookie.class);
-                    if (openCookie != null) {
-                        openCookie.open();
-                    }
-                }
-            }
-        } catch (DataObjectNotFoundException e) {
-            Exceptions.printStackTrace(e);
-        }
-
-    }
 
     @Override
     public Set<HyperlinkType> getSupportedHyperlinkTypes() {
@@ -431,6 +427,66 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         }
 //                System.out.println("files = "+files.size() + files);
         return files;
+    }
+
+    /**
+     * <pre>
+     * Given
+     *      String foo="MyTest-context.xml"
+     * in
+     *      src/test/java/com/foo/MyTest.java (src/test/java = sourceRoot A)
+     * also matches
+     *      src/test/resources/com/foo/MyTest-context.xml (src/test/resources = sourceRoot B)
+     * </pre>
+     *
+     * @param p
+     * @param searchToken
+     * @param originFileObject
+     * @see https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/10
+     * @return
+     */
+    private Collection<? extends FileObject> getMatchingFilesFromOtherSourceRootsButWithinSamePackage(Project p, String searchToken, FileObject originFileObject) {
+
+        List<FileObject> foundMatches = new ArrayList<FileObject>();
+        FileObject originFolder = originFileObject.getParent();
+        if (null == originFolder) {
+            return foundMatches;
+        }
+
+        String packageName = null;
+        for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
+            //SourceGroup: c:/myprojects/project/src/main/java/
+            //OriginFolder: c:/myprojects/project/src/main/java/com/foo/impl 
+            //Result: com/foo/impl (!=null so we found the source root)
+            String relative = FileUtil.getRelativePath(sourceGroup.getRootFolder(), originFolder);
+            if (null != relative) {
+                packageName = relative;
+                break;
+            }
+        }
+
+        for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
+            //-> c:/myprojects/project/src/test/java/com/foo
+            final FileObject packageInSourceRoot = sourceGroup.getRootFolder().getFileObject(packageName);
+            //exists c:/myprojects/project/src/test/java/com/foo/SEARCHTOKEN ?
+            Collection<FileObject> partialMatches = partialMatches(searchToken, packageInSourceRoot.getChildren());
+            foundMatches.addAll(partialMatches);
+//            System.out.println(String.format("%s: found %s in new sourceroot %s", partialMatches, searchToken, packageInSourceRoot ));
+        }
+        return foundMatches;
+    }
+
+    private List<SourceGroup> getAllSourceGroups(Project p) {
+        final Sources sources = ProjectUtils.getSources(p);
+        List<SourceGroup> list = new ArrayList<SourceGroup>();
+        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_JAVA)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_TYPE_RESOURCES)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_TEST)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(JavaProjectConstants.SOURCES_HINT_MAIN)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_GEN_SOURCES)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_OTHER)));
+        list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_TEST_OTHER)));
+        return list;
     }
 
     private static class FileObjectTuple extends Pair<FileObject, String> {

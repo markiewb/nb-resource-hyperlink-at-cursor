@@ -4,7 +4,7 @@
 
     <groupId>de.markiewb.netbeans.plugins</groupId>
     <artifactId>open-file-at-cursor-plugin</artifactId>
-    <version>1.3.0.2-SNAPSHOT</version>
+    <version>1.3.0.3-SNAPSHOT</version>
     <packaging>nbm</packaging>
 
     <properties>
@@ -180,6 +180,7 @@ Features:
 &lt;li&gt;Support partial matches (relative to current dir and source roots) - can be disabled at Options|Misc&lt;/li&gt;
 &lt;li&gt;Supports paths relative to project directory (since 1.2.0)&lt;/li&gt;
 &lt;li&gt;Supports fully qualified classnames (since 1.3.0)&lt;/li&gt;
+&lt;li&gt;Supports files in the same package but in different source root (since 1.3.0)&lt;/li&gt;
 &lt;/ul&gt;
 
 
@@ -191,6 +192,7 @@ Features:
 &lt;ul&gt;
 &lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/12"&gt;Feature 12&lt;/a&gt;]:  Support fully qualified classnames&lt;/li&gt;
 &lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/14"&gt;Feature 14&lt;/a&gt;]:  Search for classname in dependencies too (only works for dependencies with sources)&lt;/li&gt;
+&lt;li&gt;[&lt;a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/10"&gt;Feature 10&lt;/a&gt;]:  Find files in same package but different source root&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h2&gt;Updates in 1.2.2:&lt;/h2&gt;
