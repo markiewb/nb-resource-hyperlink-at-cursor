@@ -77,24 +77,24 @@ import org.openide.util.NbPreferences;
  * {@link JavaProjectConstants.SOURCES_TYPE_JAVA}, {@link JavaProjectConstants.SOURCES_TYPE_RESOURCES}, {@link JavaProjectConstants.SOURCES_HINT_TEST}
  * and in the Maven-Source-Roots
  * </p>
- * It also resolves FQN classnames. (since 1.3.0)
- * It also resolved files in same package but different source root.
- * If there are multiple matches a dialog will pop up and let the user choose.
+ * It also resolves FQN classnames. (since 1.3.0) It also resolved files in same
+ * package but different source root. If there are multiple matches a dialog
+ * will pop up and let the user choose.
  *
  * @author markiewb
  */
 @MimeRegistration(mimeType = "text/x-java", service = HyperlinkProviderExt.class)
 public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
-    
     /**
-     * Copied from org.netbeans.modules.maven.classpath.MavenSourcesImpl.
-     * These constants where not public API, so they are duplicated in here.
+     * Copied from org.netbeans.modules.maven.classpath.MavenSourcesImpl. These
+     * constants where not public API, so they are duplicated in here.
      * https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/9
      */
     public static final String MAVEN_TYPE_OTHER = "Resources"; //NOI18N
     public static final String MAVEN_TYPE_TEST_OTHER = "TestResources"; //NOI18N
     public static final String MAVEN_TYPE_GEN_SOURCES = "GeneratedSources"; //NOI18N
+
     public static void openInEditor(FileObject fileToOpen) {
         DataObject fileDO;
         try {
@@ -113,9 +113,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         } catch (DataObjectNotFoundException e) {
             Exceptions.printStackTrace(e);
         }
-        
+
     }
-    
+
     boolean enablePartialMatches;
 
     public ResourceHyperlinkProvider() {
@@ -131,7 +131,6 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             }
         });
     }
-    
 
     @Override
     public boolean isHyperlinkPoint(Document document, int offset, HyperlinkType type) {
@@ -161,7 +160,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
                 // end of the document
                 return ResultTO.createEmpty();
             }
-            
+
             while (ts.token() == null || ts.token().id() == JavaTokenId.WHITESPACE) {
                 ts.movePrevious();
             }
@@ -209,7 +208,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         if (null != fileInCurrentDirectory) {
             result.add(fileInCurrentDirectory);
         }
-        
+
         //b) exists in current dir? partial matching
         if (null != docFO && null != docFO.getParent()) {
             Collection<FileObject> partialMatches = partialMatches(path, docFO.getParent().getChildren());
@@ -242,18 +241,18 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         }
         //f) support fqn classnames
         result.addAll(findByClassName(docFO, path));
-        
+
         //g) fallback to partial matches of file in same package, but different sourceroot
         if (null != project && null != docFO) {
             result.addAll(getMatchingFilesFromOtherSourceRootsButWithinSamePackage(project, path, docFO));
-        }        
+        }
         return result;
     }
 
     private List<FileObject> getMatchingFilesFromSourceRoots(Project p, String searchToken) {
         List<FileObject> foundMatches = new ArrayList<FileObject>();
         for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
-  
+
             //partial matches
             Collection<FileObject> partialMatches = partialMatches(searchToken, sourceGroup.getRootFolder().getChildren());
             foundMatches.addAll(partialMatches);
@@ -362,7 +361,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             for (FileObjectTuple item : collector) {
                 defaultComboBoxModel.addElement(item);
             }
-            
+
             //TODO replace with floating listbox like "Open implementations"
             final JComboBox<FileObjectTuple> jList = new JComboBox<FileObjectTuple>(defaultComboBoxModel);
             if (DialogDisplayer.getDefault().notify(new DialogDescriptor(jList, "Multiple files found. Please choose:")) == NotifyDescriptor.OK_OPTION) {
@@ -371,7 +370,6 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         }
         return null;
     }
-
 
     @Override
     public Set<HyperlinkType> getSupportedHyperlinkTypes() {
@@ -442,7 +440,8 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
      * @param p
      * @param searchToken
      * @param originFileObject
-     * @see https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/10
+     * @see
+     * https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/10
      * @return
      */
     private Collection<? extends FileObject> getMatchingFilesFromOtherSourceRootsButWithinSamePackage(Project p, String searchToken, FileObject originFileObject) {
@@ -458,20 +457,33 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             //SourceGroup: c:/myprojects/project/src/main/java/
             //OriginFolder: c:/myprojects/project/src/main/java/com/foo/impl 
             //Result: com/foo/impl (!=null so we found the source root)
-            String relative = FileUtil.getRelativePath(sourceGroup.getRootFolder(), originFolder);
+            final FileObject rootFolder = sourceGroup.getRootFolder();
+            if (null == rootFolder) {
+                continue;
+            }
+            String relative = FileUtil.getRelativePath(rootFolder, originFolder);
             if (null != relative) {
                 packageName = relative;
                 break;
             }
         }
 
-        for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
-            //-> c:/myprojects/project/src/test/java/com/foo
-            final FileObject packageInSourceRoot = sourceGroup.getRootFolder().getFileObject(packageName);
-            //exists c:/myprojects/project/src/test/java/com/foo/SEARCHTOKEN ?
-            Collection<FileObject> partialMatches = partialMatches(searchToken, packageInSourceRoot.getChildren());
-            foundMatches.addAll(partialMatches);
+        if (null != packageName) {
+            for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
+                final FileObject rootFolder = sourceGroup.getRootFolder();
+                if (null == rootFolder) {
+                    continue;
+                }
+                //-> c:/myprojects/project/src/test/java/com/foo
+                final FileObject packageInSourceRoot = rootFolder.getFileObject(packageName);
+                if (null == packageInSourceRoot) {
+                    continue;
+                }
+                //exists c:/myprojects/project/src/test/java/com/foo/SEARCHTOKEN ?
+                Collection<FileObject> partialMatches = partialMatches(searchToken, packageInSourceRoot.getChildren());
+                foundMatches.addAll(partialMatches);
 //            System.out.println(String.format("%s: found %s in new sourceroot %s", partialMatches, searchToken, packageInSourceRoot ));
+            }
         }
         return foundMatches;
     }
@@ -500,7 +512,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             return getSecond();
         }
     }
-    
+
     private static class Pair<First, Second> {
 
         private final First first;

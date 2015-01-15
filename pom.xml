@@ -4,7 +4,7 @@
 
     <groupId>de.markiewb.netbeans.plugins</groupId>
     <artifactId>open-file-at-cursor-plugin</artifactId>
-    <version>1.3.0.3-SNAPSHOT</version>
+    <version>1.3.0.4-SNAPSHOT</version>
     <packaging>nbm</packaging>
 
     <properties>
