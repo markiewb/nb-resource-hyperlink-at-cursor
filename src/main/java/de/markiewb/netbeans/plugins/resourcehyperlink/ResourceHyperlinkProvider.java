@@ -96,8 +96,8 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     public static final String MAVEN_TYPE_OTHER = "Resources"; //NOI18N
     public static final String MAVEN_TYPE_TEST_OTHER = "TestResources"; //NOI18N
     public static final String MAVEN_TYPE_GEN_SOURCES = "GeneratedSources"; //NOI18N
-    public static Cache<ResultTO> cache = new Cache<ResultTO>();
-    private static final int EXPIRE_CACHE_IN_SECONDS = 2;
+    public static final Cache<ResultTO> cache = new Cache<ResultTO>();
+    private static final int EXPIRE_CACHE_IN_SECONDS = 10;
 
     public static void openInEditor(FileObject fileToOpen) {
         DataObject fileDO;
@@ -363,7 +363,12 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     @Override
     public void performClickAction(Document doc, int position, HyperlinkType type) {
-        ResultTO matches = findResources(doc, position);
+        updateCacheIfNecessary(doc, position);
+        if (null == cache.matches) {
+            return;
+        }
+        
+        ResultTO matches = cache.matches;
         if (matches.isValid()) {
             Collection<FileObject> foundMatches = matches.foundFiles;
             final Project project = FileOwnerQuery.getOwner(NbEditorUtilities.getFileObject(doc));
@@ -440,6 +445,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         ClassPath bootCp = ClassPath.getClassPath(fo, ClassPath.BOOT);
         ClassPath compileCp = ClassPath.getClassPath(fo, ClassPath.COMPILE);
         ClassPath sourcePath = ClassPath.getClassPath(fo, ClassPath.SOURCE);
+        if (null == bootCp || null == compileCp || null == sourcePath) {
+            return files;
+        }
         final ClasspathInfo info = ClasspathInfo.create(bootCp, compileCp, sourcePath);
         int lastIndexOfDot = fqnClassName.lastIndexOf(".");
         String simpleClassName;
