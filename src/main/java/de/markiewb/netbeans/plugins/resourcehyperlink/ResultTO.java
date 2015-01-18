@@ -25,28 +25,31 @@ import org.openide.filesystems.FileObject;
  * @author markiewb
  */
 class ResultTO {
+
+    static ResultTO createEmpty(int startOffset, int endOffset) {
+        return new ResultTO(startOffset, endOffset, null, Collections.<FileObject>emptySet());
+    }
+    static ResultTO createEmpty() {
+        return new ResultTO(-1, -1, null, Collections.<FileObject>emptySet());
+    }
+    static ResultTO create(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
+        return new ResultTO(startOffset, endOffset, linkTarget, foundFiles);
+    }
     int startOffsetInLiteral;
     int endOffsetInLiteral;
     String linkTarget;
 
+    Collection<FileObject> foundFiles;
     ResultTO(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
         this.startOffsetInLiteral = startOffset;
         this.endOffsetInLiteral = endOffset;
         this.linkTarget = linkTarget;
         this.foundFiles = foundFiles;
     }
-    Collection<FileObject> foundFiles;
 
     boolean isValid() {
         return !foundFiles.isEmpty();
     }
 
-    static ResultTO createEmpty() {
-        return new ResultTO(-1, -1, null, Collections.<FileObject>emptySet());
-    }
-
-    static ResultTO create(int startOffset, int endOffset, String linkTarget, Collection<FileObject> foundFiles) {
-        return new ResultTO(startOffset, endOffset, linkTarget, foundFiles);
-    }
     
 }
