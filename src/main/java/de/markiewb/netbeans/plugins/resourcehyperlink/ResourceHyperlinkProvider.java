@@ -20,9 +20,11 @@ import java.io.File;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -94,6 +96,8 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     public static final String MAVEN_TYPE_OTHER = "Resources"; //NOI18N
     public static final String MAVEN_TYPE_TEST_OTHER = "TestResources"; //NOI18N
     public static final String MAVEN_TYPE_GEN_SOURCES = "GeneratedSources"; //NOI18N
+    public static final Cache<ResultTO> cache = new Cache<ResultTO>();
+    private static final int EXPIRE_CACHE_IN_SECONDS = 10;
 
     public static void openInEditor(FileObject fileToOpen) {
         DataObject fileDO;
@@ -134,8 +138,11 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     @Override
     public boolean isHyperlinkPoint(Document document, int offset, HyperlinkType type) {
-        ResultTO matches = findResources(document, offset);
-        return matches.isValid();
+        updateCacheIfNecessary(document, offset);
+        if (null == cache.matches) {
+            return false;
+        }
+        return cache.matches.isValid();
     }
 
     private ResultTO findResources(Document document, int offset) {
@@ -183,7 +190,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 //                StatusDisplayer.getDefault().setStatusText("Path :" + startOffset + "/" + endOffset + "/" + offset + "//" + (offset - startOffset) + "=" + innerSelectedText);
                 Set<FileObject> findFiles = findFiles(doc, linkTarget);
                 if (findFiles.isEmpty()) {
-                    return ResultTO.createEmpty();
+                    return ResultTO.createEmpty(startOffset, endOffset);
                 }
                 return ResultTO.create(startOffset, endOffset, linkTarget, findFiles);
             }
@@ -312,7 +319,8 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     @Override
     public int[] getHyperlinkSpan(Document doc, int offset, HyperlinkType type) {
-        ResultTO matches = findResources(doc, offset);
+        updateCacheIfNecessary(doc, offset);
+        ResultTO matches = cache.matches;
         if (matches.isValid()) {
             return new int[]{matches.startOffsetInLiteral, matches.endOffsetInLiteral};
         } else {
@@ -320,9 +328,47 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         }
     }
 
+    private void updateCacheIfNecessary(Document doc, int offset) {
+        boolean isSameRequest = false;
+        boolean timeExpired = false;
+        FileObject fileObject = NbEditorUtilities.getFileObject(doc);
+        if (null != cache.request_filePath && null != cache.request_lastUpdated) {
+            final boolean sameFile = fileObject.getPath().equals(cache.request_filePath);
+            //if there was a previously match
+            boolean withinOffSetRange = cache.matches.startOffsetInLiteral <= offset && offset <= cache.matches.endOffsetInLiteral;
+            //if there was not a previously match            
+            final boolean sameOffset = offset == cache.request_offset;
+
+            Calendar nowMinus2Seconds = java.util.Calendar.getInstance();
+            nowMinus2Seconds.roll(Calendar.SECOND, -1 * EXPIRE_CACHE_IN_SECONDS);
+            timeExpired = cache.request_lastUpdated.before(nowMinus2Seconds.getTime());
+
+            isSameRequest = sameFile && (withinOffSetRange || sameOffset);
+
+        }
+        if (isSameRequest && !timeExpired) {
+
+        } else {
+            cache.request_filePath = fileObject.getPath();
+            cache.request_offset = offset;
+
+            cache.request_lastUpdated = new Date();
+            ResultTO matches = findResources(doc, offset);
+            cache.matches = matches;
+            System.out.println(String.format("cacheMiss = %s  %s", offset, fileObject));
+
+        }
+
+    }
+
     @Override
     public void performClickAction(Document doc, int position, HyperlinkType type) {
-        ResultTO matches = findResources(doc, position);
+        updateCacheIfNecessary(doc, position);
+        if (null == cache.matches) {
+            return;
+        }
+        
+        ResultTO matches = cache.matches;
         if (matches.isValid()) {
             Collection<FileObject> foundMatches = matches.foundFiles;
             final Project project = FileOwnerQuery.getOwner(NbEditorUtilities.getFileObject(doc));
@@ -378,7 +424,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
     @Override
     public String getTooltipText(Document doc, int offset, HyperlinkType type) {
-        ResultTO result = findResources(doc, offset);
+        updateCacheIfNecessary(doc, offset);
+
+        ResultTO result = cache.matches;
         if (!result.isValid()) {
             return null;
         }
@@ -397,6 +445,9 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         ClassPath bootCp = ClassPath.getClassPath(fo, ClassPath.BOOT);
         ClassPath compileCp = ClassPath.getClassPath(fo, ClassPath.COMPILE);
         ClassPath sourcePath = ClassPath.getClassPath(fo, ClassPath.SOURCE);
+        if (null == bootCp || null == compileCp || null == sourcePath) {
+            return files;
+        }
         final ClasspathInfo info = ClasspathInfo.create(bootCp, compileCp, sourcePath);
         int lastIndexOfDot = fqnClassName.lastIndexOf(".");
         String simpleClassName;
@@ -455,7 +506,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         String packageName = null;
         for (SourceGroup sourceGroup : getAllSourceGroups(p)) {
             //SourceGroup: c:/myprojects/project/src/main/java/
-            //OriginFolder: c:/myprojects/project/src/main/java/com/foo/impl 
+            //OriginFolder: c:/myprojects/project/src/main/java/com/foo/impl
             //Result: com/foo/impl (!=null so we found the source root)
             final FileObject rootFolder = sourceGroup.getRootFolder();
             if (null == rootFolder) {
@@ -499,6 +550,14 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_OTHER)));
         list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_TEST_OTHER)));
         return list;
+    }
+
+    static class Cache<T> {
+
+        int request_offset;
+        Date request_lastUpdated;
+        String request_filePath;
+        T matches;
     }
 
     private static class FileObjectTuple extends Pair<FileObject, String> {
