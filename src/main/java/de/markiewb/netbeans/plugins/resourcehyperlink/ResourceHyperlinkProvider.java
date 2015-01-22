@@ -333,7 +333,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         boolean timeExpired = false;
         FileObject fileObject = NbEditorUtilities.getFileObject(doc);
         if (null != cache.request_filePath && null != cache.request_lastUpdated) {
-            final boolean sameFile = fileObject.getPath().equals(cache.request_filePath);
+            final boolean sameFile = getPathOrDefault(fileObject).equals(cache.request_filePath);
             //if there was a previously match
             boolean withinOffSetRange = cache.matches.startOffsetInLiteral <= offset && offset <= cache.matches.endOffsetInLiteral;
             //if there was not a previously match            
@@ -349,7 +349,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         if (isSameRequest && !timeExpired) {
 
         } else {
-            cache.request_filePath = fileObject.getPath();
+            cache.request_filePath = getPathOrDefault(fileObject);
             cache.request_offset = offset;
 
             cache.request_lastUpdated = new Date();
@@ -393,7 +393,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
 
             for (FileObject fileObject : indexedFilePaths) {
                 //convert absolute path to relative regarding the project
-                String path1 = fileObject.getPath().substring(project.getProjectDirectory().getPath().length());
+                String path1 = getPathOrDefault(fileObject).substring(getPathOrDefault(project.getProjectDirectory()).length());
                 collector.add(new FileObjectTuple(fileObject, path1));
             }
             Collections.sort(collector, new Comparator<FileObjectTuple>() {
@@ -552,6 +552,16 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         return list;
     }
 
+    private String getPathOrDefault(FileObject fo) {
+        if (null == fo) {
+            return "";
+        }
+        final String path = fo.getPath();
+        if (null == path) {
+            return "";
+        }
+        return path;
+    }
     static class Cache<T> {
 
         int request_offset;
