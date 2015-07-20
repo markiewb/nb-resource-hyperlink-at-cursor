@@ -29,6 +29,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 import java.util.prefs.PreferenceChangeEvent;
 import java.util.prefs.PreferenceChangeListener;
 import java.util.prefs.Preferences;
@@ -98,7 +99,8 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
     public static final String MAVEN_TYPE_GEN_SOURCES = "GeneratedSources"; //NOI18N
     public static final Cache<ResultTO> cache = new Cache<ResultTO>();
     private static final int EXPIRE_CACHE_IN_SECONDS = 10;
-
+    private static final Logger LOG = Logger.getLogger(ResourceHyperlinkProvider.class.getName());
+    
     public static void openInEditor(FileObject fileToOpen) {
         DataObject fileDO;
         try {
@@ -355,8 +357,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             cache.request_lastUpdated = new Date();
             ResultTO matches = findResources(doc, offset);
             cache.matches = matches;
-            System.out.println(String.format("cacheMiss = %s  %s", offset, fileObject));
-
+            LOG.fine(String.format("cacheMiss = %s  %s", offset, fileObject));
         }
 
     }
