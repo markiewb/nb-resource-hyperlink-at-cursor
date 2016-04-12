@@ -171,7 +171,15 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             }
 
             while (ts.token() == null || ts.token().id() == JavaTokenId.WHITESPACE) {
-                ts.movePrevious();
+                boolean movePrevious = ts.movePrevious();
+                if (!movePrevious) {
+                    /**
+                     * Doc from {@link ​TokenSequence#movePrevious}: false if it
+                     * was not moved because there are no more tokens in the
+                     * backward direction.
+                     */
+                    break;
+                }
             }
 
             Token<JavaTokenId> resourceToken = ts.offsetToken();
