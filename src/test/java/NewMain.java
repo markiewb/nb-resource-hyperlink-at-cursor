@@ -7,6 +7,7 @@ public class NewMain {
                 + "com/toy/anagrams/lib/WordLibrary.java");
         System.out.println("filename = " + "WordLibrary.java");
         System.out.println("Hyper");
+        System.out.println("file:asdsdf.....");
         System.out.println("./src\\test\\java\\foo\\NewMain.java");
         System.out.println(".\\src\\test\\java\\foo\\NewMain.java");
         //link to src/main/nbm

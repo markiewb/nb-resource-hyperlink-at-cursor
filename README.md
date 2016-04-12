@@ -3,7 +3,6 @@
 
 nb-resource-hyperlink-at-cursor
 ===============================
-This plugin adds hyperlinks to filenames within String literals of Java sources. If you click the hyperlink, then the file will be opened in the NetBeans editor.
 
 Download at http://plugins.netbeans.org/plugin/52349/?show=true
 
@@ -30,6 +29,7 @@ Features:
 <h2>Updates in 1.3.2:</h2>
 <ul>
 <li>[<a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/3">Issue 3</a>]:  Fixed freeze</li>
+<li>[<a href="https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/19">Issue 19</a>]:  Fixed java.lang.AssertionError: Need to normalize ..., when there is a colon in the string #19</li>
 </ul>
 
 <h2>Updates in 1.3.1:</h2>

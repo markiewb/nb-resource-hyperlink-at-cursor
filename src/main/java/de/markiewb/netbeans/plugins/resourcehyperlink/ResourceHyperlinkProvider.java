@@ -244,7 +244,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             FileObject projectDirectory = project.getProjectDirectory();
             if (null != projectDirectory) {
                 //exact matches
-                FileObject fileObjectAtProjectRoot = projectDirectory.getFileObject(path);
+                FileObject fileObjectAtProjectRoot = getFileObjectInASafeManner(projectDirectory, path);
                 if (fileObjectAtProjectRoot != null && !fileObjectAtProjectRoot.isFolder()) {
                     result.add(fileObjectAtProjectRoot);
                 }
@@ -275,7 +275,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
             foundMatches.addAll(partialMatches);
 
             //exact matches, relative path
-            FileObject fileObject = sourceGroup.getRootFolder().getFileObject(searchToken);
+            FileObject fileObject = getFileObjectInASafeManner(sourceGroup.getRootFolder(), searchToken);
             if (fileObject != null && !fileObject.isFolder()) {
                 foundMatches.add(fileObject);
             }
@@ -319,7 +319,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         if (null == currentDir) {
             return null;
         }
-        final FileObject fileObject = currentDir.getFileObject(path);
+        final FileObject fileObject = getFileObjectInASafeManner(currentDir, path);
         if (null != fileObject && !fileObject.isFolder()) {
             return fileObject;
         } else {
@@ -535,7 +535,7 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
                     continue;
                 }
                 //-> c:/myprojects/project/src/test/java/com/foo
-                final FileObject packageInSourceRoot = rootFolder.getFileObject(packageName);
+                final FileObject packageInSourceRoot = getFileObjectInASafeManner(rootFolder, packageName);
                 if (null == packageInSourceRoot) {
                     continue;
                 }
@@ -559,6 +559,28 @@ public class ResourceHyperlinkProvider implements HyperlinkProviderExt {
         list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_OTHER)));
         list.addAll(Arrays.asList(sources.getSourceGroups(MAVEN_TYPE_TEST_OTHER)));
         return list;
+    }
+    
+    /**
+     * Try to catch
+     * https://github.com/markiewb/nb-resource-hyperlink-at-cursor/issues/19
+     * "java.lang.AssertionError: Need to normalize ..., when there is a colon
+     * in the string"
+     *
+     * @param parent
+     * @param relativePath
+     * @return
+     */
+    private FileObject getFileObjectInASafeManner(FileObject parent, String relativePath) {
+        if (null != parent) {
+            try {
+                FileObject result = parent.getFileObject(relativePath);
+                return result;
+            } catch (AssertionError e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String getPathOrDefault(FileObject fo) {
